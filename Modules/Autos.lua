@@ -178,31 +178,6 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
         for _, kw in ipairs(keywords) do
             table.insert(lowerKeywords, string.lower(kw))
         end
-        if latestAppraiseResult ~= "" then
-            local appLower = latestAppraiseResult:lower()
-            for _, kw in ipairs(lowerKeywords) do
-                if string.find(appLower, kw, 1, true) then
-                    return true, kw, latestAppraiseResult, latestAppraiseResult
-                end
-            end
-        end
-        pcall(function()
-            local announcements = LocalPlayer.PlayerGui.hud.safezone.announcements
-            for _, child in ipairs(announcements:GetChildren()) do
-                local main = child:FindFirstChild("Main")
-                if main and main:IsA("TextLabel") and main.Text ~= "" then
-                    local tLower = main.Text:lower()
-                    if string.find(tLower, "appraise") then
-                        for _, kw in ipairs(lowerKeywords) do
-                            if string.find(tLower, kw, 1, true) then
-                                latestAppraiseResult = main.Text
-                                return true, kw, main.Text, main.Text
-                            end
-                        end
-                    end
-                end
-            end
-        end)
         local char = LocalPlayer.Character
         local tool = char and char:FindFirstChildOfClass("Tool")
         if not tool or (itemId and tool:FindFirstChild("link") and tool.link.Value ~= itemId) then
@@ -233,20 +208,26 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
         end)
         local debugInfo = ""
         if itemData then
+            local matchedKw, matchedDisplay = nil, nil
             pcall(function()
                 local FischUtils = require(game:GetService("ReplicatedStorage").shared.utils.FischUtils)
                 if FischUtils and FischUtils.ItemDisplay then
                     local itemDisp = FischUtils.ItemDisplay(itemData, { disable_color = true, disable_newlines = true })
                     if itemDisp then
-                        local dispLower = tostring(itemDisp):lower()
+                        matchedDisplay = tostring(itemDisp)
+                        local dispLower = matchedDisplay:lower()
                         for _, kw in ipairs(lowerKeywords) do
                             if string.find(dispLower, kw, 1, true) then
-                                return true, kw, tostring(itemDisp), tostring(itemDisp)
+                                matchedKw = kw
+                                break
                             end
                         end
                     end
                 end
             end)
+            if matchedKw then
+                return true, matchedKw, matchedDisplay, matchedDisplay
+            end
         end
         if itemData and itemData.sub then
             local sub = itemData.sub
@@ -262,7 +243,7 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                     if kw == "sparkling" and sub.Sparkling == true then
                         return true, kw, itemData.name or (tool and tool.Name) or "Item", debugInfo
                     end
-                    if valStr == kw or string.find(valStr, kw, 1, true) then
+                    if valStr == kw or (valStr ~= "none" and string.find(valStr, kw, 1, true)) then
                         return true, kw, itemData.name or (tool and tool.Name) or "Item", debugInfo
                     end
                 end
@@ -273,16 +254,23 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                 local fishInfo = fishLib[fishName]
                 local weight = tonumber(sub.Weight or sub.weight)
                 if weight and fishInfo.WeightPool and fishInfo.WeightPool[2] then
-                    local maxW = fishInfo.WeightPool[2] / 10
-                    local minW = fishInfo.WeightPool[1] / 10
+                    local maxBaseKg = fishInfo.WeightPool[2] / 10
                     for _, kw in ipairs(lowerKeywords) do
-                        if kw == "big" and weight >= (maxW * 0.80) then
-                            return true, "Big", fishName, debugInfo .. string.format(" (Big: %.1f/%.1fkg)", weight, maxW)
+                        if kw == "big" and weight > maxBaseKg then
+                            return true, "Big", fishName, debugInfo .. string.format(" (Big: %.1f > %.1fkg)", weight, maxBaseKg)
                         end
-                        if kw == "giant" and weight >= (maxW * 1.0) then
-                            return true, "Giant", fishName, debugInfo .. string.format(" (Giant: %.1f/%.1fkg)", weight, maxW)
+                        if kw == "giant" and weight >= (maxBaseKg * 1.5) then
+                            return true, "Giant", fishName, debugInfo .. string.format(" (Giant: %.1f > %.1fkg)", weight, maxBaseKg)
                         end
                     end
+                end
+            end
+        end
+        if latestAppraiseResult ~= "" then
+            local appLower = latestAppraiseResult:lower()
+            for _, kw in ipairs(lowerKeywords) do
+                if string.find(appLower, kw, 1, true) then
+                    return true, kw, latestAppraiseResult, latestAppraiseResult
                 end
             end
         end
@@ -296,7 +284,7 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
             for _, attrVal in pairs(tool:GetAttributes()) do
                 local valStr = tostring(attrVal):lower()
                 for _, kw in ipairs(lowerKeywords) do
-                    if valStr == kw or string.find(valStr, kw, 1, true) then
+                    if valStr == kw or (valStr ~= "none" and string.find(valStr, kw, 1, true)) then
                         return true, kw, tool.Name, debugInfo ~= "" and debugInfo or tool.Name
                     end
                 end
@@ -619,6 +607,7 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                     local count = 0
                     while Appraise do
                         count = count + 1
+                        latestAppraiseResult = ""
                         invokeDynamicAppraise(DialogInteract, choiceNode)
                         task.wait(0.12)
                         local match, kw, name, debugStr = checkItemMatchesKeywords(targetItemId, keywords)
@@ -859,6 +848,7 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                             local count = 0
                             while Appraise do
                                 count = count + 1
+                                latestAppraiseResult = ""
                                 invokeDynamicAppraise(DialogInteract, choiceNode)
                                 task.wait(0.12)
                                 local match, kw, name, debugStr = checkItemMatchesKeywords(targetItemId, keywords)
