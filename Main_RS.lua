@@ -35,8 +35,8 @@ local function cleanClientSpam()
     end)
 end
 task.spawn(cleanClientSpam)
-local BaseURL = "https://key.shieldteam.asia/raw/Fisch/"
-local FallbackBaseURL = "https://raw.githubusercontent.com/KAN-FISCH/Fisch/refs/heads/main/"
+local BaseURL = "https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/"
+local FallbackBaseURL = "https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/"
 local function httpGetWithTimeout(url, timeout)
     local result = nil
     local success = false
@@ -333,11 +333,11 @@ pcall(function()
     if readfile and isfile and isfile("ShielDTeam/NewFish5_Source/ShielD_UILib.lua") then
         Speed_Library = loadstring(readfile("ShielDTeam/NewFish5_Source/ShielD_UILib.lua"))()
     elseif game and game.HttpGet then
-        Speed_Library = loadstring(game:HttpGet("https://key.shieldteam.asia/raw/Fisch/ShielD_UILib.lua"))()
+        Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/ShielD_UILib.lua"))()
     end
 end)
 if not Speed_Library then
-    Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/Fisch/refs/heads/main/ShielD_UILib.lua"))()
+    Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/ShielD_UILib.lua"))()
 end
 if not Speed_Library then
     warn("[NewFish5] Gagal load ShielD_UILib!")
@@ -345,7 +345,7 @@ if not Speed_Library then
 end
 task.spawn(function()
     pcall(function()
-        local ideScript = game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/Fisch/refs/heads/main/ShieldIDE")
+        local ideScript = game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/ShieldIDE")
         if ideScript and ideScript ~= "" then
             loadstring(ideScript)()
         end
