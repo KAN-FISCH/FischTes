@@ -117,6 +117,14 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
         end
         return targetTool
     end
+    local fishLib = nil
+    pcall(function()
+        local modules = ReplicatedStorage:FindFirstChild("shared") and ReplicatedStorage.shared:FindFirstChild("modules")
+        local library = modules and modules:FindFirstChild("library")
+        if library and library:FindFirstChild("fish") then
+            fishLib = require(library.fish)
+        end
+    end)
     local function checkItemMatchesKeywords(itemId, keywords)
         if not keywords or #keywords == 0 then return false, nil, nil end
         local lowerKeywords = {}
@@ -164,6 +172,22 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                     end
                     if valStr == kw or string.find(valStr, kw, 1, true) then
                         return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                    end
+                end
+            end
+            local fishName = itemData.name or (tool and tool.Name)
+            if fishName and fishLib and fishLib[fishName] then
+                local fishInfo = fishLib[fishName]
+                local weight = tonumber(sub.Weight or sub.weight)
+                if weight and fishInfo.WeightPool and fishInfo.WeightPool[2] then
+                    local maxW = fishInfo.WeightPool[2]
+                    for _, kw in ipairs(lowerKeywords) do
+                        if kw == "big" and weight >= (maxW * 0.75) then
+                            return true, "Big", fishName
+                        end
+                        if kw == "giant" and weight >= (maxW * 0.95) then
+                            return true, "Giant", fishName
+                        end
                     end
                 end
             end
