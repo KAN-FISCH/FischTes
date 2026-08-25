@@ -137,10 +137,26 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
     local fishLib = getFishLib()
     local latestAppraiseResult = ""
     pcall(function()
+        local events = ReplicatedStorage:WaitForChild("events", 5)
+        if events then
+            local function onAnno(txt)
+                if typeof(txt) == "string" and string.find(txt:lower(), "appraise") then
+                    latestAppraiseResult = txt
+                end
+            end
+            local t1 = events:FindFirstChild("anno_thought")
+            if t1 then t1.OnClientEvent:Connect(onAnno) end
+            local t2 = events:FindFirstChild("anno_thought_big")
+            if t2 then t2.OnClientEvent:Connect(onAnno) end
+            local t3 = events:FindFirstChild("anno_localthought")
+            if t3 then t3.Event:Connect(onAnno) end
+            local t4 = events:FindFirstChild("anno_localthoughtbig")
+            if t4 then t4.Event:Connect(onAnno) end
+        end
         local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
         if playerGui then
             playerGui.DescendantAdded:Connect(function(desc)
-                if desc:IsA("TextLabel") and desc.Text and string.find(desc.Text:lower(), "appraised") then
+                if desc:IsA("TextLabel") and desc.Text and string.find(desc.Text:lower(), "appraise") then
                     latestAppraiseResult = desc.Text
                 end
             end)
@@ -162,6 +178,31 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
         for _, kw in ipairs(keywords) do
             table.insert(lowerKeywords, string.lower(kw))
         end
+        if latestAppraiseResult ~= "" then
+            local appLower = latestAppraiseResult:lower()
+            for _, kw in ipairs(lowerKeywords) do
+                if string.find(appLower, kw, 1, true) then
+                    return true, kw, latestAppraiseResult, latestAppraiseResult
+                end
+            end
+        end
+        pcall(function()
+            local announcements = LocalPlayer.PlayerGui.hud.safezone.announcements
+            for _, child in ipairs(announcements:GetChildren()) do
+                local main = child:FindFirstChild("Main")
+                if main and main:IsA("TextLabel") and main.Text ~= "" then
+                    local tLower = main.Text:lower()
+                    if string.find(tLower, "appraise") then
+                        for _, kw in ipairs(lowerKeywords) do
+                            if string.find(tLower, kw, 1, true) then
+                                latestAppraiseResult = main.Text
+                                return true, kw, main.Text, main.Text
+                            end
+                        end
+                    end
+                end
+            end
+        end)
         local char = LocalPlayer.Character
         local tool = char and char:FindFirstChildOfClass("Tool")
         if not tool or (itemId and tool:FindFirstChild("link") and tool.link.Value ~= itemId) then
@@ -191,6 +232,22 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
             end
         end)
         local debugInfo = ""
+        if itemData then
+            pcall(function()
+                local FischUtils = require(game:GetService("ReplicatedStorage").shared.utils.FischUtils)
+                if FischUtils and FischUtils.ItemDisplay then
+                    local itemDisp = FischUtils.ItemDisplay(itemData, { disable_color = true, disable_newlines = true })
+                    if itemDisp then
+                        local dispLower = tostring(itemDisp):lower()
+                        for _, kw in ipairs(lowerKeywords) do
+                            if string.find(dispLower, kw, 1, true) then
+                                return true, kw, tostring(itemDisp), tostring(itemDisp)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
         if itemData and itemData.sub then
             local sub = itemData.sub
             local mutText = tostring(sub.Mutation or "None")
@@ -225,14 +282,6 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                             return true, "Giant", fishName, debugInfo .. string.format(" (Giant: %.1f/%.1fkg)", weight, maxW)
                         end
                     end
-                end
-            end
-        end
-        if latestAppraiseResult ~= "" then
-            local appLower = latestAppraiseResult:lower()
-            for _, kw in ipairs(lowerKeywords) do
-                if string.find(appLower, kw, 1, true) then
-                    return true, kw, (tool and tool.Name) or "Fish", latestAppraiseResult
                 end
             end
         end
