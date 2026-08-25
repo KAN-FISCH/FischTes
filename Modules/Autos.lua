@@ -226,9 +226,10 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
     end)
     local function invokeDynamicAppraise(DialogInteract, fallbackNode)
         local cNode = dynamicAppraiseNodes.confirmNode or fallbackNode or 3
-        pcall(function() DialogInteract:InvokeServer(dynamicAppraiseNodes.talkNode, dynamicAppraiseNodes.talkChoice) end)
-        task.wait(0.15)
-        pcall(function() DialogInteract:InvokeServer(cNode, dynamicAppraiseNodes.confirmChoice or 1) end)
+        pcall(function()
+            DialogInteract:InvokeServer(dynamicAppraiseNodes.talkNode, dynamicAppraiseNodes.talkChoice)
+            DialogInteract:InvokeServer(cNode, dynamicAppraiseNodes.confirmChoice or 1)
+        end)
     end
     local selectAppraise = {}
     local selectAppraise1 = {}
@@ -471,34 +472,25 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                             break
                         end
                     end
-                    ensureToolEquipped(targetItemId)
-                    task.wait(0.15)
                     local choiceNode = (selectedAppraiserLocation == "Drowned Appraiser") and 6 or 3
                     invokeDynamicAppraise(DialogInteract, choiceNode)
-                    task.wait(0.1)
-                    local matched = false
-                    for attempt = 1, 15 do
-                        task.wait(0.03)
-                        local match, kw, name = checkItemMatchesKeywords(targetItemId, keywords)
-                        if match then
-                            print("[AutoAppraise] SUCCESS:", name, "| mutasi:", kw)
-                            matched = true
-                            processedItemIds[targetItemId] = true
-                            break
-                        end
-                    end
-                    if matched then
+                    local match, kw, name = checkItemMatchesKeywords(targetItemId, keywords)
+                    if match then
+                        print("[AutoAppraise] SUCCESS:", name, "| mutasi:", kw)
+                        processedItemIds[targetItemId] = true
                         local nextId = findNextSameItem(targetName, keywords, processedItemIds)
                         if nextId then
                             print("[AutoAppraise] Auto pindah ke item sejenis berikutnya:", targetName, "| ID:", nextId)
                             targetItemId = nextId
                             ensureToolEquipped(targetItemId)
                             targetTool = char:FindFirstChildOfClass("Tool")
-                            task.wait(0.3)
+                            task.wait(0.2)
                         else
                             print("[AutoAppraise] Selesai! Semua item (" .. tostring(targetName) .. ") sudah kena mutasi.")
                             break
                         end
+                    else
+                        task.wait(0.04)
                     end
                 end
                 if clonedAppraiser and clonedAppraiser.Parent then
@@ -725,24 +717,17 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                         if alreadyMatch then
                             print("[AutoAppraise All] Item", itemName, "sudah memiliki mutation:", kw)
                         else
+                            local choiceNode = (selectedAppraiserLocation == "Drowned Appraiser") and 6 or 3
                             while Appraise do
-                                ensureToolEquipped(targetItemId)
-                                task.wait(0.15)
-                                local choiceNode = (selectedAppraiserLocation == "Drowned Appraiser") and 6 or 3
                                 invokeDynamicAppraise(DialogInteract, choiceNode)
-                                local matched = false
-                                for attempt = 1, 15 do
-                                    task.wait(0.03)
-                                    local match, kw, name = checkItemMatchesKeywords(targetItemId, keywords)
-                                    if match then
-                                        print("[AutoAppraise All] SUCCESS:", name, "mutated to:", kw)
-                                        matched = true
-                                        break
-                                    end
+                                local match, kw, name = checkItemMatchesKeywords(targetItemId, keywords)
+                                if match then
+                                    print("[AutoAppraise All] SUCCESS:", name, "mutated to:", kw)
+                                    break
                                 end
-                                if matched then break end
+                                task.wait(0.04)
                             end
-                            task.wait(0.5)
+                            task.wait(0.2)
                         end
                     end
                 end
