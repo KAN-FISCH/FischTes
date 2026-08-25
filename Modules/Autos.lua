@@ -33,6 +33,10 @@ local function getMod(name)
 end
 local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppraise, AutoAppraise, AutoEnchant, Collect, AutosSection, AuraSection, AutoJetskiSection, FoodSection)
     local DataController = require(ReplicatedStorage:WaitForChild("client"):WaitForChild("legacyControllers"):WaitForChild("DataController"))
+    local InventoryController = nil
+    pcall(function()
+        InventoryController = require(ReplicatedStorage.client.legacyControllers.InventoryController)
+    end)
     local function FireProximity(proximity)
         if proximity:IsA("ProximityPrompt") and proximity.Enabled then
             pcall(function()
@@ -56,6 +60,9 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
         end
     end
     local function getEquippedItemId()
+        if InventoryController and InventoryController.EquippedItemId then
+            return InventoryController.EquippedItemId
+        end
         local char = LocalPlayer.Character
         if not char then return nil end
         local tool = char:FindFirstChildOfClass("Tool")
@@ -112,9 +119,6 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
     end
     local function checkItemMatchesKeywords(itemId, keywords)
         if not keywords or #keywords == 0 then return false, nil, nil end
-        if not itemId then
-            itemId = getEquippedItemId()
-        end
         local lowerKeywords = {}
         for _, kw in ipairs(keywords) do
             table.insert(lowerKeywords, string.lower(kw))
@@ -132,36 +136,25 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                 end
             end
         end
-        if tool then
-            local tNameLower = tool.Name:lower()
-            local tMut = tool:GetAttribute("Mutation") or tool:GetAttribute("Variant") or tool:GetAttribute("Size") or tool:GetAttribute("Tier")
-            for _, kw in ipairs(lowerKeywords) do
-                if kw == "shiny" and (tool:GetAttribute("Shiny") == true or string.find(tNameLower, "shiny", 1, true)) then
-                    return true, kw, tool.Name
-                end
-                if kw == "sparkling" and (tool:GetAttribute("Sparkling") == true or string.find(tNameLower, "sparkling", 1, true)) then
-                    return true, kw, tool.Name
-                end
-                if string.find(tNameLower, kw, 1, true) then
-                    return true, kw, tool.Name
-                end
-                if tMut and string.find(tostring(tMut):lower(), kw, 1, true) then
-                    return true, kw, tool.Name
+        local itemData = nil
+        pcall(function()
+            if tool and InventoryController and InventoryController.GetItemFromLink then
+                itemData = InventoryController:GetItemFromLink(tool)
+            end
+            if not itemData and InventoryController and InventoryController.EquippedItem then
+                itemData = InventoryController.EquippedItem
+            end
+            if not itemData and DataController and DataController.InventoryReplicator then
+                local linkVal = (tool and tool:FindFirstChild("link") and tool.link.Value) or itemId
+                if linkVal then
+                    itemData = DataController.InventoryReplicator:TryIndex({ "Inventory", linkVal })
                 end
             end
-        end
-        if itemId then
-            local inventory = nil
-            pcall(function()
-                if DataController.InventoryReplicator then
-                    inventory = DataController.InventoryReplicator:Index({"Inventory"})
-                else
-                    inventory = DataController.fetch("Inventory")
-                end
-            end)
-            if inventory and inventory[itemId] then
-                local itemData = inventory[itemId]
-                local sub = itemData.sub or {}
+        end)
+        if itemData and itemData.sub then
+            local sub = itemData.sub
+            for subKey, subVal in pairs(sub) do
+                local valStr = tostring(subVal):lower()
                 for _, kw in ipairs(lowerKeywords) do
                     if kw == "shiny" and sub.Shiny == true then
                         return true, kw, itemData.name or (tool and tool.Name) or "Item"
@@ -169,21 +162,33 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                     if kw == "sparkling" and sub.Sparkling == true then
                         return true, kw, itemData.name or (tool and tool.Name) or "Item"
                     end
-                    if sub.Mutation and string.find(string.lower(tostring(sub.Mutation)), kw, 1, true) then
+                    if valStr == kw or string.find(valStr, kw, 1, true) then
                         return true, kw, itemData.name or (tool and tool.Name) or "Item"
                     end
-                    if sub.Variant and string.find(string.lower(tostring(sub.Variant)), kw, 1, true) then
-                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                end
+            end
+        end
+        if tool then
+            local tNameLower = tool.Name:lower()
+            for _, kw in ipairs(lowerKeywords) do
+                if string.find(tNameLower, kw, 1, true) then
+                    return true, kw, tool.Name
+                end
+            end
+            for _, attrVal in pairs(tool:GetAttributes()) do
+                local valStr = tostring(attrVal):lower()
+                for _, kw in ipairs(lowerKeywords) do
+                    if valStr == kw or string.find(valStr, kw, 1, true) then
+                        return true, kw, tool.Name
                     end
-                    if sub.Size and string.find(string.lower(tostring(sub.Size)), kw, 1, true) then
-                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
-                    end
-                    if sub.Tier and string.find(string.lower(tostring(sub.Tier)), kw, 1, true) then
-                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
-                    end
-                    if itemData.name and string.find(string.lower(tostring(itemData.name)), kw, 1, true) then
-                        return true, kw, itemData.name
-                    end
+                end
+            end
+        end
+        if itemData and itemData.name then
+            local nameLower = tostring(itemData.name):lower()
+            for _, kw in ipairs(lowerKeywords) do
+                if string.find(nameLower, kw, 1, true) then
+                    return true, kw, itemData.name
                 end
             end
         end
