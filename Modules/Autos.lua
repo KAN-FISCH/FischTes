@@ -117,12 +117,33 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
         end
         return targetTool
     end
-    local fishLib = nil
+    local function getFishLib()
+        local lib = nil
+        pcall(function()
+            local masterLib = require(game:GetService("ReplicatedStorage").shared.modules.library)
+            if masterLib and masterLib.fish then
+                lib = masterLib.fish
+            elseif typeof(masterLib) == "table" then
+                lib = masterLib
+            end
+        end)
+        if not lib then
+            pcall(function()
+                lib = require(game:GetService("ReplicatedStorage").shared.modules.library.fish)
+            end)
+        end
+        return lib
+    end
+    local fishLib = getFishLib()
+    local latestAppraiseResult = ""
     pcall(function()
-        local modules = ReplicatedStorage:FindFirstChild("shared") and ReplicatedStorage.shared:FindFirstChild("modules")
-        local library = modules and modules:FindFirstChild("library")
-        if library and library:FindFirstChild("fish") then
-            fishLib = require(library.fish)
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            playerGui.DescendantAdded:Connect(function(desc)
+                if desc:IsA("TextLabel") and desc.Text and string.find(desc.Text:lower(), "appraised") then
+                    latestAppraiseResult = desc.Text
+                end
+            end)
         end
     end)
     local function notifyAppraise(title, text, duration)
@@ -189,6 +210,7 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                     end
                 end
             end
+            if not fishLib then fishLib = getFishLib() end
             local fishName = itemData.name or (tool and tool.Name)
             if fishName and fishLib and fishLib[fishName] then
                 local fishInfo = fishLib[fishName]
@@ -196,13 +218,21 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                 if weight and fishInfo.WeightPool and fishInfo.WeightPool[2] then
                     local maxW = fishInfo.WeightPool[2]
                     for _, kw in ipairs(lowerKeywords) do
-                        if kw == "big" and weight >= (maxW * 0.75) then
-                            return true, "Big", fishName, debugInfo
+                        if kw == "big" and weight >= (maxW * 0.70) then
+                            return true, "Big", fishName, debugInfo .. string.format(" (Big: %.1f/%.1fkg)", weight, maxW)
                         end
-                        if kw == "giant" and weight >= (maxW * 0.95) then
-                            return true, "Giant", fishName, debugInfo
+                        if kw == "giant" and weight >= (maxW * 0.90) then
+                            return true, "Giant", fishName, debugInfo .. string.format(" (Giant: %.1f/%.1fkg)", weight, maxW)
                         end
                     end
+                end
+            end
+        end
+        if latestAppraiseResult ~= "" then
+            local appLower = latestAppraiseResult:lower()
+            for _, kw in ipairs(lowerKeywords) do
+                if string.find(appLower, kw, 1, true) then
+                    return true, kw, (tool and tool.Name) or "Fish", latestAppraiseResult
                 end
             end
         end
