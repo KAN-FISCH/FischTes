@@ -111,35 +111,80 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
         return targetTool
     end
     local function checkItemMatchesKeywords(itemId, keywords)
+        if not keywords or #keywords == 0 then return false, nil, nil end
         if not itemId then
             itemId = getEquippedItemId()
         end
-        if not itemId then return false, nil, nil end
-        local inventory = nil
-        pcall(function()
-            if DataController.InventoryReplicator then
-                inventory = DataController.InventoryReplicator:Index({"Inventory"})
-            else
-                inventory = DataController.fetch("Inventory")
-            end
-        end)
-        if not inventory then return false, nil, nil end
-        local itemData = inventory[itemId]
-        if not itemData or not itemData.sub then return false, nil, nil end
-        local sub = itemData.sub
         local lowerKeywords = {}
         for _, kw in ipairs(keywords) do
             table.insert(lowerKeywords, string.lower(kw))
         end
-        for _, kw in ipairs(lowerKeywords) do
-            if kw == "shiny" and sub.Shiny == true then
-                return true, kw, itemData.name
+        local char = LocalPlayer.Character
+        local tool = char and char:FindFirstChildOfClass("Tool")
+        if not tool or (itemId and tool:FindFirstChild("link") and tool.link.Value ~= itemId) then
+            local bp = LocalPlayer:FindFirstChild("Backpack")
+            if bp and itemId then
+                for _, bpt in ipairs(bp:GetChildren()) do
+                    if bpt:IsA("Tool") and bpt:FindFirstChild("link") and bpt.link.Value == itemId then
+                        tool = bpt
+                        break
+                    end
+                end
             end
-            if kw == "sparkling" and sub.Sparkling == true then
-                return true, kw, itemData.name
+        end
+        if tool then
+            local tNameLower = tool.Name:lower()
+            local tMut = tool:GetAttribute("Mutation") or tool:GetAttribute("Variant") or tool:GetAttribute("Size") or tool:GetAttribute("Tier")
+            for _, kw in ipairs(lowerKeywords) do
+                if kw == "shiny" and (tool:GetAttribute("Shiny") == true or string.find(tNameLower, "shiny", 1, true)) then
+                    return true, kw, tool.Name
+                end
+                if kw == "sparkling" and (tool:GetAttribute("Sparkling") == true or string.find(tNameLower, "sparkling", 1, true)) then
+                    return true, kw, tool.Name
+                end
+                if string.find(tNameLower, kw, 1, true) then
+                    return true, kw, tool.Name
+                end
+                if tMut and string.find(tostring(tMut):lower(), kw, 1, true) then
+                    return true, kw, tool.Name
+                end
             end
-            if sub.Mutation and string.find(string.lower(tostring(sub.Mutation)), kw, 1, true) then
-                return true, kw, itemData.name
+        end
+        if itemId then
+            local inventory = nil
+            pcall(function()
+                if DataController.InventoryReplicator then
+                    inventory = DataController.InventoryReplicator:Index({"Inventory"})
+                else
+                    inventory = DataController.fetch("Inventory")
+                end
+            end)
+            if inventory and inventory[itemId] then
+                local itemData = inventory[itemId]
+                local sub = itemData.sub or {}
+                for _, kw in ipairs(lowerKeywords) do
+                    if kw == "shiny" and sub.Shiny == true then
+                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                    end
+                    if kw == "sparkling" and sub.Sparkling == true then
+                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                    end
+                    if sub.Mutation and string.find(string.lower(tostring(sub.Mutation)), kw, 1, true) then
+                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                    end
+                    if sub.Variant and string.find(string.lower(tostring(sub.Variant)), kw, 1, true) then
+                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                    end
+                    if sub.Size and string.find(string.lower(tostring(sub.Size)), kw, 1, true) then
+                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                    end
+                    if sub.Tier and string.find(string.lower(tostring(sub.Tier)), kw, 1, true) then
+                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                    end
+                    if itemData.name and string.find(string.lower(tostring(itemData.name)), kw, 1, true) then
+                        return true, kw, itemData.name
+                    end
+                end
             end
         end
         return false, nil, nil
@@ -442,55 +487,19 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                     end
                     return nil
                 end
-                while Appraise do
-                    if targetTool and targetTool.Parent then
-                        local link = targetTool:FindFirstChild("link")
-                        if link and link.Value ~= "" then
-                            targetItemId = link.Value
-                        end
-                    else
-                        local currentEquippedId = getEquippedItemId()
-                        if currentEquippedId then
-                            targetItemId = currentEquippedId
-                            targetTool = char:FindFirstChildOfClass("Tool")
-                        end
-                    end
-                    if targetTool then targetName = targetTool.Name end
-                    local initMatch, initKw, initName = checkItemMatchesKeywords(targetItemId, keywords)
-                    if initMatch then
-                        print("[AutoAppraise] Item sudah match:", initName, "| keyword:", initKw)
-                        processedItemIds[targetItemId] = true
-                        local nextId = findNextSameItem(targetName, keywords, processedItemIds)
-                        if nextId then
-                            print("[AutoAppraise] Auto pindah ke item sejenis berikutnya:", targetName, "| ID:", nextId)
-                            targetItemId = nextId
-                            ensureToolEquipped(targetItemId)
-                            targetTool = char:FindFirstChildOfClass("Tool")
-                            task.wait(0.3)
-                        else
-                            print("[AutoAppraise] Semua item sejenis (" .. tostring(targetName) .. ") sudah memiliki mutasi yang dicari!")
-                            break
-                        end
-                    end
+                local initialMatch, initKw, initName = checkItemMatchesKeywords(targetItemId, keywords)
+                if initialMatch then
+                    print("[AutoAppraise] Item yang dipegang sudah memiliki mutasi:", initName, "|", initKw)
+                else
                     local choiceNode = (selectedAppraiserLocation == "Drowned Appraiser") and 6 or 3
-                    invokeDynamicAppraise(DialogInteract, choiceNode)
-                    local match, kw, name = checkItemMatchesKeywords(targetItemId, keywords)
-                    if match then
-                        print("[AutoAppraise] SUCCESS:", name, "| mutasi:", kw)
-                        processedItemIds[targetItemId] = true
-                        local nextId = findNextSameItem(targetName, keywords, processedItemIds)
-                        if nextId then
-                            print("[AutoAppraise] Auto pindah ke item sejenis berikutnya:", targetName, "| ID:", nextId)
-                            targetItemId = nextId
-                            ensureToolEquipped(targetItemId)
-                            targetTool = char:FindFirstChildOfClass("Tool")
-                            task.wait(0.2)
-                        else
-                            print("[AutoAppraise] Selesai! Semua item (" .. tostring(targetName) .. ") sudah kena mutasi.")
+                    while Appraise do
+                        invokeDynamicAppraise(DialogInteract, choiceNode)
+                        task.wait(0.12)
+                        local match, kw, name = checkItemMatchesKeywords(targetItemId, keywords)
+                        if match then
+                            print("[AutoAppraise] SUCCESS! Berhasil mendapatkan mutasi:", name, "| mutasi:", kw)
                             break
                         end
-                    else
-                        task.wait(0.04)
                     end
                 end
                 if clonedAppraiser and clonedAppraiser.Parent then
@@ -720,14 +729,14 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                             local choiceNode = (selectedAppraiserLocation == "Drowned Appraiser") and 6 or 3
                             while Appraise do
                                 invokeDynamicAppraise(DialogInteract, choiceNode)
+                                task.wait(0.12)
                                 local match, kw, name = checkItemMatchesKeywords(targetItemId, keywords)
                                 if match then
-                                    print("[AutoAppraise All] SUCCESS:", name, "mutated to:", kw)
+                                    print("[AutoAppraise All] SUCCESS! Item", name, "berhasil mutasi ke:", kw)
                                     break
                                 end
-                                task.wait(0.04)
                             end
-                            task.wait(0.2)
+                            task.wait(0.3)
                         end
                     end
                 end
