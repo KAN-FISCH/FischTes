@@ -125,8 +125,18 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
             fishLib = require(library.fish)
         end
     end)
+    local function notifyAppraise(title, text, duration)
+        pcall(function()
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = title or "Auto Appraise",
+                Text = text or "",
+                Duration = duration or 3
+            })
+        end)
+        print(string.format("[%s] %s", tostring(title), tostring(text)))
+    end
     local function checkItemMatchesKeywords(itemId, keywords)
-        if not keywords or #keywords == 0 then return false, nil, nil end
+        if not keywords or #keywords == 0 then return false, nil, nil, "No keywords" end
         local lowerKeywords = {}
         for _, kw in ipairs(keywords) do
             table.insert(lowerKeywords, string.lower(kw))
@@ -159,19 +169,23 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                 end
             end
         end)
+        local debugInfo = ""
         if itemData and itemData.sub then
             local sub = itemData.sub
+            local mutText = tostring(sub.Mutation or "None")
+            local wText = tostring(sub.Weight or sub.weight or "0")
+            debugInfo = string.format("Mut: %s | W: %s", mutText, wText)
             for subKey, subVal in pairs(sub) do
                 local valStr = tostring(subVal):lower()
                 for _, kw in ipairs(lowerKeywords) do
                     if kw == "shiny" and sub.Shiny == true then
-                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                        return true, kw, itemData.name or (tool and tool.Name) or "Item", debugInfo
                     end
                     if kw == "sparkling" and sub.Sparkling == true then
-                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                        return true, kw, itemData.name or (tool and tool.Name) or "Item", debugInfo
                     end
                     if valStr == kw or string.find(valStr, kw, 1, true) then
-                        return true, kw, itemData.name or (tool and tool.Name) or "Item"
+                        return true, kw, itemData.name or (tool and tool.Name) or "Item", debugInfo
                     end
                 end
             end
@@ -183,10 +197,10 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                     local maxW = fishInfo.WeightPool[2]
                     for _, kw in ipairs(lowerKeywords) do
                         if kw == "big" and weight >= (maxW * 0.75) then
-                            return true, "Big", fishName
+                            return true, "Big", fishName, debugInfo
                         end
                         if kw == "giant" and weight >= (maxW * 0.95) then
-                            return true, "Giant", fishName
+                            return true, "Giant", fishName, debugInfo
                         end
                     end
                 end
@@ -196,14 +210,14 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
             local tNameLower = tool.Name:lower()
             for _, kw in ipairs(lowerKeywords) do
                 if string.find(tNameLower, kw, 1, true) then
-                    return true, kw, tool.Name
+                    return true, kw, tool.Name, debugInfo ~= "" and debugInfo or tool.Name
                 end
             end
             for _, attrVal in pairs(tool:GetAttributes()) do
                 local valStr = tostring(attrVal):lower()
                 for _, kw in ipairs(lowerKeywords) do
                     if valStr == kw or string.find(valStr, kw, 1, true) then
-                        return true, kw, tool.Name
+                        return true, kw, tool.Name, debugInfo ~= "" and debugInfo or tool.Name
                     end
                 end
             end
@@ -212,11 +226,11 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
             local nameLower = tostring(itemData.name):lower()
             for _, kw in ipairs(lowerKeywords) do
                 if string.find(nameLower, kw, 1, true) then
-                    return true, kw, itemData.name
+                    return true, kw, itemData.name, debugInfo ~= "" and debugInfo or itemData.name
                 end
             end
         end
-        return false, nil, nil
+        return false, nil, nil, debugInfo
     end
     local function checkEquippedMatchesKeywords(keywords)
         return checkItemMatchesKeywords(nil, keywords)
@@ -516,17 +530,23 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                     end
                     return nil
                 end
-                local initialMatch, initKw, initName = checkItemMatchesKeywords(targetItemId, keywords)
+                notifyAppraise("Auto Appraise", "Target: " .. table.concat(keywords, ", "), 2)
+                local initialMatch, initKw, initName, initDebug = checkItemMatchesKeywords(targetItemId, keywords)
                 if initialMatch then
-                    print("[AutoAppraise] Item yang dipegang sudah memiliki mutasi:", initName, "|", initKw)
+                    notifyAppraise("Auto Appraise", "Item sudah memiliki: " .. tostring(initKw) .. " (" .. tostring(initDebug) .. ")", 4)
                 else
                     local choiceNode = (selectedAppraiserLocation == "Drowned Appraiser") and 6 or 3
+                    local count = 0
                     while Appraise do
+                        count = count + 1
                         invokeDynamicAppraise(DialogInteract, choiceNode)
                         task.wait(0.12)
-                        local match, kw, name = checkItemMatchesKeywords(targetItemId, keywords)
+                        local match, kw, name, debugStr = checkItemMatchesKeywords(targetItemId, keywords)
+                        if count % 3 == 0 or match then
+                            notifyAppraise("Roll #" .. count, string.format("%s (%s)", tostring(name or targetName), tostring(debugStr)), 1.5)
+                        end
                         if match then
-                            print("[AutoAppraise] SUCCESS! Berhasil mendapatkan mutasi:", name, "| mutasi:", kw)
+                            notifyAppraise("🎉 SUCCESS!", string.format("Got %s on %s! (%s)", tostring(kw), tostring(name), tostring(debugStr)), 5)
                             break
                         end
                     end
@@ -756,12 +776,17 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                             print("[AutoAppraise All] Item", itemName, "sudah memiliki mutation:", kw)
                         else
                             local choiceNode = (selectedAppraiserLocation == "Drowned Appraiser") and 6 or 3
+                            local count = 0
                             while Appraise do
+                                count = count + 1
                                 invokeDynamicAppraise(DialogInteract, choiceNode)
                                 task.wait(0.12)
-                                local match, kw, name = checkItemMatchesKeywords(targetItemId, keywords)
+                                local match, kw, name, debugStr = checkItemMatchesKeywords(targetItemId, keywords)
+                                if count % 3 == 0 or match then
+                                    notifyAppraise("Roll #" .. count, string.format("%s (%s)", tostring(name or itemName), tostring(debugStr)), 1.5)
+                                end
                                 if match then
-                                    print("[AutoAppraise All] SUCCESS! Item", name, "berhasil mutasi ke:", kw)
+                                    notifyAppraise("🎉 SUCCESS!", string.format("Got %s on %s! (%s)", tostring(kw), tostring(name), tostring(debugStr)), 5)
                                     break
                                 end
                             end
