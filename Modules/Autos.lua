@@ -273,12 +273,13 @@ local function Init(AutosCollect, AutosQuest, AutosJack, AutosFavorit, AutosAppr
                 local fishInfo = fishLib[fishName]
                 local weight = tonumber(sub.Weight or sub.weight)
                 if weight and fishInfo.WeightPool and fishInfo.WeightPool[2] then
-                    local maxW = fishInfo.WeightPool[2]
+                    local maxW = fishInfo.WeightPool[2] / 10
+                    local minW = fishInfo.WeightPool[1] / 10
                     for _, kw in ipairs(lowerKeywords) do
-                        if kw == "big" and weight >= (maxW * 0.70) then
+                        if kw == "big" and weight >= (maxW * 0.80) then
                             return true, "Big", fishName, debugInfo .. string.format(" (Big: %.1f/%.1fkg)", weight, maxW)
                         end
-                        if kw == "giant" and weight >= (maxW * 0.90) then
+                        if kw == "giant" and weight >= (maxW * 1.0) then
                             return true, "Giant", fishName, debugInfo .. string.format(" (Giant: %.1f/%.1fkg)", weight, maxW)
                         end
                     end
