@@ -362,26 +362,13 @@ local function Init(ShopBait, ShopItem, ShopRod, Merlin)
         end
     end
 
-    Merlin:AddButton({
-        Title = "🔍 Open Dialog & Node Tracker",
-        Description = "Track Node ID & Choice when talking to Merlin/NPC",
-        Callback = function()
-            pcall(function()
-                if readfile and isfile and isfile("ShielDTeam/NewFish5_Source/TrackDialog.lua") then
-                    loadstring(readfile("ShielDTeam/NewFish5_Source/TrackDialog.lua"))()
-                elseif game and game.HttpGet then
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/NewFish5_Source/TrackDialog.lua"))()
-                end
-            end)
-        end
-    })
-
     local dynamicMerlin = {
-        relic = { startNode = 2, startChoice = 1, buyNode = 11, buyChoice = 1 },
-        luck  = { startNode = 2, startChoice = 2, buyNode = 9,  buyChoice = 1 },
-        lure  = { startNode = 2, startChoice = 2, buyNode = 10, buyChoice = 1 },
-        xp    = { startNode = 2, startChoice = 2, buyNode = 7,  buyChoice = 1 },
-        chasm = { startNode = 2, startChoice = 3, buyNode = 3,  buyChoice = 1 },
+        relic        = { startNode = 2, startChoice = 1, buyNode = 5,  buyChoice = 1 },
+        luck         = { startNode = 2, startChoice = 2, buyNode = 25, buyChoice = 1 },
+        lure         = { startNode = 2, startChoice = 2, buyNode = 26, buyChoice = 1 },
+        xp           = { startNode = 2, startChoice = 2, buyNode = 27, buyChoice = 1 },
+        twistedrelic = { startNode = 2, startChoice = 2, buyNode = 29, buyChoice = 1 },
+        chasm        = { startNode = 2, startChoice = 3, buyNode = 3,  buyChoice = 1 },
     }
 
     local function parseMerlinDialogTree(npc, u18, u19)
@@ -505,19 +492,16 @@ local function Init(ShopBait, ShopItem, ShopRod, Merlin)
 
                 local buyNode = target.buyNode
                 if not buyNode then
-                    if itemKey == "relic" then buyNode = 11
-                    elseif itemKey == "luck" then buyNode = 9
-                    elseif itemKey == "lure" then buyNode = 10
-                    elseif itemKey == "xp" then buyNode = 7
+                    if itemKey == "relic" then buyNode = 5
+                    elseif itemKey == "luck" then buyNode = 25
+                    elseif itemKey == "lure" then buyNode = 26
+                    elseif itemKey == "xp" then buyNode = 27
+                    elseif itemKey == "twistedrelic" then buyNode = 29
                     end
                 end
 
                 if buyNode then
                     pcall(function() DialogInteract:InvokeServer(buyNode, choiceIdx) end)
-                end
-
-                if itemKey == "relic" and buyNode ~= 3 then
-                    pcall(function() DialogInteract:InvokeServer(3, choiceIdx) end)
                 end
             end
         end)
@@ -567,7 +551,7 @@ local function Init(ShopBait, ShopItem, ShopRod, Merlin)
         {Title = "Auto Buy - Temporary Luck Boost", Key = "luck"},
         {Title = "Auto Buy - Temporary Lure Boost", Key = "lure"},
         {Title = "Auto Buy - Temporary XP Boost",   Key = "xp"},
-        {Title = "Auto Buy - Twisted Relic",       Key = "relic"},
+        {Title = "Auto Buy - Twisted Relic",       Key = "twistedrelic"},
     }
 
     for _, item in ipairs(MerlinBuffs) do
