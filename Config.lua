@@ -31,6 +31,7 @@ _G.Config = {
     playerDetectionEnabled = false,
     isEquipRpd = false,
     AutoSell = false,
+    AutoSellInterval = 20,
     AutoClaimMulti = false,
     InfinityJump = false,
     FreezeCharacter = false,

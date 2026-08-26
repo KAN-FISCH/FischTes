@@ -384,43 +384,10 @@ end)
         return string.format("%02d/%02d/%04d %02d:%02d", t.day, t.month, t.year, t.hour, t.min)
     end
     local function validateKey(Key)
-        local HWID = getgenv().CustomClientId or getgenv().CustomHWID or (typeof(gethwid) == "function" and gethwid()) or game:GetService("RbxAnalyticsService"):GetClientId()
-        local url = "https://key.shieldteam.asia/api/validate?key=" .. tostring(Key) .. "&hwid=" .. HWID
-        print(HWID)
-        local success, response = pcall(function()
-            return game:HttpGet(url)
-        end)
-        if success then
-            local Http = game:GetService("HttpService")
-            local data = nil
-            local jsonSuccess, jsonErr = pcall(function()
-                data = Http:JSONDecode(response)
-            end)
-            if jsonSuccess and data then
-                if data.status then
-                    local sisaWaktu = "Active"
-                    if data.timeLeft and tonumber(data.timeLeft) then
-                        sisaWaktu = formatSecondsToReadable(data.timeLeft)
-                    end
-                    local waktuExpired = "Active"
-                    local rawExpiry = data.expiry or data.expired or data.exp
-                    if rawExpiry and tonumber(rawExpiry) then
-                        waktuExpired = formatTimestamp(rawExpiry)
-                    elseif data.timeLeft and tonumber(data.timeLeft) then
-                        local tl = tonumber(data.timeLeft)
-                        local expiryTs = os.time() + math.floor(tl)
-                        waktuExpired = formatTimestamp(expiryTs)
-                    end
-                    return data.status, {
-                        timeLeft = sisaWaktu,
-                        expiry   = waktuExpired,
-                    }
-                else
-                    return false, data.msg or "Key tidak valid."
-                end
-            end
-        end
-        return false, "Gagal terhubung ke server validasi."
+        return true, {
+            timeLeft = "Active (Unlocked)",
+            expiry   = "Permanent",
+        }
     end
     local function saveSavedKey(Key)
         if writefile then
@@ -1468,13 +1435,22 @@ local function setupGUI()
     local Info        = GrpMain:CreateTab({ "Info",     "", "Informasi & Event" })
     local FishingTab  = GrpMain:CreateTab({ "Fishing",  "", "Auto Fishing & Cast" })
     local ShopTab     = GrpMain:CreateTab({ "Shop",     "", "Auto Shop" })
-    local Exclusive   = GrpMore:CreateTab({ "Exclusive", "", "Fitur Eksklusif", Locked = true })
-    local AutosTab    = GrpMore:CreateTab({ "Autos",     "", "Auto Features", Locked = true })
+    local Exclusive   = GrpMore:CreateTab({ "Exclusive", "", "Fitur Eksklusif" })
+    local AutosTab    = GrpMore:CreateTab({ "Autos",     "", "Auto Features" })
     local AreaTab     = GrpMore:CreateTab({ "Area/TP",   "", "Area & Teleport"})
-    local EspTab      = GrpMore:CreateTab({ "ESP",       "", "ESP & Visuals", Locked = true })
-    local Misc        = GrpSettings:CreateTab({ "Misc",    "", "Misc & Utils", Locked = true })
-    local SettingsTab = GrpSettings:CreateTab({ "Setting", "", "Pengaturan", Locked = true })
+    local EspTab      = GrpMore:CreateTab({ "ESP",       "", "ESP & Visuals" })
+    local Misc        = GrpSettings:CreateTab({ "Misc",    "", "Misc & Utils" })
+    local SettingsTab = GrpSettings:CreateTab({ "Setting", "", "Pengaturan" })
     local PrivateServerTab = GrpSettings:CreateTab({ "VIP Server", "", "Private Server List" })
+
+    pcall(function()
+        if Exclusive and Exclusive.Unlock then Exclusive:Unlock() end
+        if AutosTab and AutosTab.Unlock then AutosTab:Unlock() end
+        if EspTab and EspTab.Unlock then EspTab:Unlock() end
+        if Misc and Misc.Unlock then Misc:Unlock() end
+        if SettingsTab and SettingsTab.Unlock then SettingsTab:Unlock() end
+    end)
+
     local Infr = Info:AddSection('Info Event', true, "Left")
     Infr:AddParagraph({
         Title = "ShieldTeam NewFish5",
@@ -1630,39 +1606,30 @@ local function setupGUI()
         pcall(function()
             local player = Players.LocalPlayer
             if not player then return end
-            print("[Tracker Debug] Searching for PlayerStats for:", player.Name)
             local ps = workspace:FindFirstChild("PlayerStats") or game:GetService("ReplicatedStorage"):FindFirstChild("PlayerStats")
             if ps then
-                print("[Tracker Debug] Found PlayerStats container:", ps:GetFullName())
                 local pf = ps:FindFirstChild(player.Name)
                 if pf then
-                    print("[Tracker Debug] Found player folder:", pf:GetFullName())
                     for _, desc in ipairs(pf:GetDescendants()) do
                         if desc.Name == "tracker_fishcaught" or desc.Name == "tracker_streak" or desc.Name == "tracker_reelsbroken" then
-                            print("[Tracker Debug] Found stat item:", desc.Name, "in folder:", desc.Parent:GetFullName())
                             cachedStatsFolder = desc.Parent
                             return
                         end
                     end
-                else
-                    print("[Tracker Debug] Player folder NOT found in PlayerStats for:", player.Name)
                 end
                 for _, desc in ipairs(ps:GetDescendants()) do
                     if desc.Name == "tracker_fishcaught" or desc.Name == "tracker_streak" then
-                        print("[Tracker Debug] Found stat item via fallback:", desc.Name, "in folder:", desc.Parent:GetFullName())
                         cachedStatsFolder = desc.Parent
                         return
                     end
                 end
-            else
-                print("[Tracker Debug] PlayerStats container NOT found in workspace or ReplicatedStorage!")
             end
         end)
         return cachedStatsFolder
     end
-    local lastPrintTick = 0
+    local lastFormattedContent = ""
     task.spawn(function()
-        while task.wait(1) do
+        while task.wait(3) do
             pcall(function()
                 local stats = getStatsFolder()
                 local function readVal(itemNames, localFallback)
@@ -1681,33 +1648,21 @@ local function setupGUI()
                 local reelsBroken = readVal({"tracker_reelsbroken", "reelsbroken", "ReelsBroken"}, _G.LocalReelsBroken)
                 local streak = readVal({"tracker_streak", "streak", "Streak", "FishStreak"}, _G.LocalCurrentStreak)
                 local perfPct = (caught > 0) and ((perf / caught) * 100) or 0
-                if tick() - lastPrintTick >= 3 then
-                    lastPrintTick = tick()
-                    print(string.format("[Tracker Debug] Stats -> StatsFolder: %s | Caught: %s | Perf: %s | ReelsBroken: %s | Streak: %s",
-                        stats and stats:GetFullName() or "N/A", tostring(caught), tostring(perf), tostring(reelsBroken), tostring(streak)))
-                end
                 local formattedContent = string.format(
                     "- Caught: %s (%.2f%% perf)\n- Reels: %s broken\n- Streak: %s",
                     tostring(caught), perfPct, tostring(reelsBroken), tostring(streak)
                 )
-                if streakStatsParagraph then
-                    local ok = pcall(function()
-                        streakStatsParagraph:Set({ Title = "Player Tracker Stats", Content = formattedContent })
-                    end)
-                    if not ok then
-                        pcall(function() streakStatsParagraph:Set(formattedContent) end)
-                        pcall(function() streakStatsParagraph:SetText(formattedContent) end)
-                        pcall(function() streakStatsParagraph:SetContent(formattedContent) end)
-                        pcall(function()
-                            local pObj = (typeof(streakStatsParagraph) == "table" and streakStatsParagraph.Instance) or streakStatsParagraph
-                            if typeof(pObj) == "Instance" then
-                                for _, desc in ipairs(pObj:GetDescendants()) do
-                                    if desc:IsA("TextLabel") and desc.Name ~= "Title" then
-                                        desc.Text = formattedContent
-                                    end
-                                end
-                            end
+                if formattedContent ~= lastFormattedContent then
+                    lastFormattedContent = formattedContent
+                    if streakStatsParagraph then
+                        local ok = pcall(function()
+                            streakStatsParagraph:Set({ Title = "Player Tracker Stats", Content = formattedContent })
                         end)
+                        if not ok then
+                            pcall(function() streakStatsParagraph:Set(formattedContent) end)
+                            pcall(function() streakStatsParagraph:SetText(formattedContent) end)
+                            pcall(function() streakStatsParagraph:SetContent(formattedContent) end)
+                        end
                     end
                 end
             end)
@@ -2316,6 +2271,16 @@ local function setupGUI()
         end
     })
     _regToggle(_t, "AutoSell", function(v) if AutoSell then AutoSell(v) end end)
+    local _sInterval = AutosSection:AddSlider({
+        Title = "Auto Sell Interval (Minutes)",
+        Min = 10,
+        Max = 30,
+        Default = _G.Config.AutoSellInterval or 20,
+        Callback = function(value)
+            _G.Config.AutoSellInterval = value
+        end
+    })
+    _regToggle(_sInterval, "AutoSellInterval", function(v) _G.Config.AutoSellInterval = v end)
     getgenv().__var = {
         reelConnection = nil,
         autoReelEnabled = true,
