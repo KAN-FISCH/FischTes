@@ -3258,6 +3258,15 @@ end
         return grp:CreateTab({Config[1] or Config.Name or "", Config[2] or Config.Icon or "", Config[3] or Config.Description or ""})
     end
 
+    -- Auto AFK Memory Cleaner (periodic GC to prevent lag & memory leaks during long AFK sessions)
+    task.spawn(function()
+        while task.wait(180) do
+            pcall(function()
+                collectgarbage("collect")
+            end)
+        end
+    end)
+
     return Tabs
 end
 
