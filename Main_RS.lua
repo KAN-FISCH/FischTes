@@ -330,17 +330,17 @@ local AutoQuestShady = getMod("AutoQuestShady")
 local executorName = Utils and Utils.DetectExecutor() or "Unknown"
 local Speed_Library
 pcall(function()
-    if readfile and isfile and isfile("ShielDTeam/NewFish5_Source/ShielD_UILib.lua") then
-        Speed_Library = loadstring(readfile("ShielDTeam/NewFish5_Source/ShielD_UILib.lua"))()
+    if readfile and isfile and isfile("ShielDTeam/GUIENC.lua") then
+        Speed_Library = loadstring(readfile("ShielDTeam/GUIENC.lua"))()
     elseif game and game.HttpGet then
-        Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/ShielD_UILib.lua"))()
+        Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/GUIENC.lua"))()
     end
 end)
 if not Speed_Library then
-    Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/ShielD_UILib.lua"))()
+    Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/KAN-FISCH/FischTes/refs/heads/main/GUIENC.lua"))()
 end
 if not Speed_Library then
-    warn("[NewFish5] Gagal load ShielD_UILib!")
+    warn("[NewFish5] Gagal load GUIENC!")
     return
 end
 task.spawn(function()
