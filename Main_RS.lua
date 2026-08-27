@@ -2273,9 +2273,9 @@ local function setupGUI()
     _regToggle(_t, "AutoSell", function(v) if AutoSell then AutoSell(v) end end)
     local _sInterval = AutosSection:AddSlider({
         Title = "Auto Sell Interval (Minutes)",
-        Min = 10,
-        Max = 30,
-        Default = _G.Config.AutoSellInterval or 20,
+        Min = 2,
+        Max = 10,
+        Default = _G.Config.AutoSellInterval or 3,
         Callback = function(value)
             _G.Config.AutoSellInterval = value
         end
